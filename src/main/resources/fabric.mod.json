@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "mimicmod",
+  "version": "${version}",
+  "name": "Mimic Horror",
+  "description": "Horror mod: the Mimic stalks you. Phase 1 - sounds, chat, brief appearances. Phase 2 - it hunts you.",
+  "authors": ["You"],
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.mimicmod.MimicMod"],
+    "client": ["com.mimicmod.MimicClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.11.3",
+    "fabric": "*",
+    "minecraft": "1.16.x"
+  }
+}

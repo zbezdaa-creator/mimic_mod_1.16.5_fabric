@@ -1,0 +1,13 @@
+{
+  "entity.mimicmod.mimic": "Мимик",
+  "item.mimicmod.mimic_spawn_egg": "Яйцо призыва Мимика",
+  "subtitles.mimicmod.hi": "Мимик: Hi",
+  "subtitles.mimicmod.see_you": "Мимик: I see you",
+  "subtitles.mimicmod.not_me": "Мимик: Not me...!",
+  "subtitles.mimicmod.dont_kill": "Мимик: Don't kill me pls...",
+  "subtitles.mimicmod.scream": "Мимик кричит",
+  "subtitles.mimicmod.cry": "Кто-то плачет",
+  "subtitles.mimicmod.rustle": "Шорох",
+  "subtitles.mimicmod.footstep": "Шаги",
+  "subtitles.mimicmod.dig": "Быстрое копание"
+}

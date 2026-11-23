@@ -1,0 +1,13 @@
+{
+  "entity.mimicmod.mimic": "Mimic",
+  "item.mimicmod.mimic_spawn_egg": "Mimic Spawn Egg",
+  "subtitles.mimicmod.hi": "Mimic: Hi",
+  "subtitles.mimicmod.see_you": "Mimic: I see you",
+  "subtitles.mimicmod.not_me": "Mimic: Not me...!",
+  "subtitles.mimicmod.dont_kill": "Mimic: Don't kill me pls...",
+  "subtitles.mimicmod.scream": "Mimic screams",
+  "subtitles.mimicmod.cry": "Something cries",
+  "subtitles.mimicmod.rustle": "Rustling",
+  "subtitles.mimicmod.footstep": "Footsteps",
+  "subtitles.mimicmod.dig": "Fast digging"
+}
