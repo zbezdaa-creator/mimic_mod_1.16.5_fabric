@@ -9,7 +9,6 @@ import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.math.BlockPos;
@@ -18,9 +17,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 public class MimicEntity extends HostileEntity {
-	/** Фаза 1: призрак - стоит, смотрит, исчезает. */
 	private boolean haunt = false;
-	/** Фаза 2: сколько тиков живёт охотник (-1 = бесконечно, например из яйца). */
 	private int lifeLimit = -1;
 	private int life = 0;
 	private int lookTicks = 0;
@@ -66,11 +63,16 @@ public class MimicEntity extends HostileEntity {
 		if (this.world.isClient) return;
 		life++;
 
+		// Призрак, загруженный из сохранения: удаляем
+		if (!haunt && this.isAiDisabled() && this.isInvulnerable()) {
+			this.remove();
+			return;
+		}
+
 		if (haunt) {
 			PlayerEntity p = this.world.getClosestPlayer(this, 80.0D);
 			if (p == null || life > 240) { vanish(false); return; }
 
-			// поворачиваемся к игроку
 			double dx = p.getX() - this.getX();
 			double dz = p.getZ() - this.getZ();
 			float yawToPlayer = (float) (MathHelper.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
@@ -85,7 +87,7 @@ public class MimicEntity extends HostileEntity {
 			Vec3d to = new Vec3d(this.getX() - p.getX(), this.getEyeY() - p.getEyeY(), this.getZ() - p.getZ()).normalize();
 			if (look.dotProduct(to) > 0.96D && p.canSee(this)) {
 				lookTicks++;
-				if (lookTicks >= 25) vanish(true); // игрок посмотрел ~1.2 сек - исчезает с криком
+				if (lookTicks >= 25) vanish(true);
 			}
 		} else if (lifeLimit > 0 && life > lifeLimit) {
 			vanish(false);
@@ -123,16 +125,4 @@ public class MimicEntity extends HostileEntity {
 
 	@Override
 	protected float getSoundVolume() { return 2.0F; }
-
-	@Override
-	public void writeCustomDataToTag(CompoundTag tag) {
-		super.writeCustomDataToTag(tag);
-		tag.putBoolean("Haunt", haunt);
-	}
-
-	@Override
-	public void readCustomDataFromTag(CompoundTag tag) {
-		super.readCustomDataFromTag(tag);
-		this.haunt = tag.getBoolean("Haunt");
-	}
 }
