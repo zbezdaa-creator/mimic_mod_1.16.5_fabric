@@ -5,7 +5,11 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
 
 public class MimicSounds {
-	public static SoundEvent HI, SEE_YOU, NOT_ME, DONT_KILL, SCREAM, CRY, RUSTLE, FOOTSTEP, DIG;
+	public static SoundEvent WATERPHONE, DRONE, FAR_SCREAM, VANISH, FLICKER, JUMPSCARE, SEE_YOU, RUSTLE, FOOTSTEP, DIG;
+
+	/** Длина длинных треков в тиках (20 тиков = 1 сек), чтобы не включать их одновременно. */
+	public static final int WATERPHONE_TICKS = 1530;
+	public static final int DRONE_TICKS = 1505;
 
 	private static SoundEvent reg(String name) {
 		Identifier id = new Identifier(MimicMod.MOD_ID, name);
@@ -13,12 +17,13 @@ public class MimicSounds {
 	}
 
 	public static void register() {
-		HI = reg("mimic_hi");
+		WATERPHONE = reg("mimic_waterphone");
+		DRONE = reg("mimic_drone");
+		FAR_SCREAM = reg("mimic_far_scream");
+		VANISH = reg("mimic_vanish");
+		FLICKER = reg("mimic_flicker");
+		JUMPSCARE = reg("mimic_jumpscare");
 		SEE_YOU = reg("mimic_see_you");
-		NOT_ME = reg("mimic_not_me");
-		DONT_KILL = reg("mimic_dont_kill");
-		SCREAM = reg("mimic_scream");
-		CRY = reg("mimic_cry");
 		RUSTLE = reg("mimic_rustle");
 		FOOTSTEP = reg("mimic_footstep");
 		DIG = reg("mimic_dig");

@@ -13,7 +13,6 @@ import net.minecraft.item.ItemGroup;
 import net.minecraft.item.SpawnEggItem;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.LiteralText;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
@@ -28,23 +27,31 @@ public class MimicMod implements ModInitializer {
 
 		MIMIC = Registry.register(Registry.ENTITY_TYPE, new Identifier(MOD_ID, "mimic"),
 				FabricEntityTypeBuilder.create(SpawnGroup.MONSTER, MimicEntity::new)
-						.dimensions(EntityDimensions.fixed(0.7F, 2.6F))
+						.dimensions(EntityDimensions.fixed(0.7F, 2.9F))
 						.trackRangeBlocks(128)
 						.build());
 		FabricDefaultAttributeRegistry.register(MIMIC, MimicEntity.createMimicAttributes());
 
 		Registry.register(Registry.ITEM, new Identifier(MOD_ID, "mimic_spawn_egg"),
-				new SpawnEggItem(MIMIC, 0x101010, 0xE8E8E0, new Item.Settings().group(ItemGroup.MISC)));
+				new SpawnEggItem(MIMIC, 0x009696, 0x5E3E30, new Item.Settings().group(ItemGroup.MISC)));
 
 		MimicDirector.init();
 
-		// Команды для теста (нужны права оператора / читы)
+		// Команды только для тестов (нужны права оператора). Сам мод работает без них.
 		CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) -> dispatcher.register(
 				CommandManager.literal("mimic")
 						.requires(src -> src.hasPermissionLevel(2))
 						.then(CommandManager.literal("spawn").executes(c -> {
-							ServerPlayerEntity p = c.getSource().getPlayer();
-							MimicDirector.appear(p, MimicDirector.phase(c.getSource().getMinecraftServer()) == 2);
+							int mode = MimicDirector.phase(c.getSource().getMinecraftServer()) == 2 ? MimicEntity.STALK : MimicEntity.GHOST;
+							MimicDirector.appear(c.getSource().getPlayer(), mode);
+							return 1;
+						}))
+						.then(CommandManager.literal("flicker").executes(c -> {
+							MimicDirector.appear(c.getSource().getPlayer(), MimicEntity.FLICKER);
+							return 1;
+						}))
+						.then(CommandManager.literal("hunt").executes(c -> {
+							MimicDirector.appear(c.getSource().getPlayer(), MimicEntity.HUNT);
 							return 1;
 						}))
 						.then(CommandManager.literal("scare").executes(c -> {

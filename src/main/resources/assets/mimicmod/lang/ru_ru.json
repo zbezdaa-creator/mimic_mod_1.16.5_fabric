@@ -1,12 +1,13 @@
 {
   "entity.mimicmod.mimic": "Мимик",
   "item.mimicmod.mimic_spawn_egg": "Яйцо призыва Мимика",
-  "subtitles.mimicmod.hi": "Мимик: Hi",
+  "subtitles.mimicmod.waterphone": "Жуткая музыка",
+  "subtitles.mimicmod.drone": "Зловещий гул",
+  "subtitles.mimicmod.far_scream": "Далёкий крик",
+  "subtitles.mimicmod.vanish": "Мимик исчезает",
+  "subtitles.mimicmod.flicker": "Что-то мелькнуло",
+  "subtitles.mimicmod.jumpscare": "Мимик кричит",
   "subtitles.mimicmod.see_you": "Мимик: I see you",
-  "subtitles.mimicmod.not_me": "Мимик: Not me...!",
-  "subtitles.mimicmod.dont_kill": "Мимик: Don't kill me pls...",
-  "subtitles.mimicmod.scream": "Мимик кричит",
-  "subtitles.mimicmod.cry": "Кто-то плачет",
   "subtitles.mimicmod.rustle": "Шорох",
   "subtitles.mimicmod.footstep": "Шаги",
   "subtitles.mimicmod.dig": "Быстрое копание"

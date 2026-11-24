@@ -8,9 +8,13 @@ import java.util.Random;
 import java.util.UUID;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LightningEntity;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
+import net.minecraft.network.packet.s2c.play.StopSoundS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -21,15 +25,16 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.Heightmap;
 
-/** Управляет "сценарием": когда и что происходит рядом с каждым игроком. */
+/** "Режиссёр": сам решает, когда и что происходит рядом с каждым игроком. */
 public class MimicDirector {
-	/** Через сколько игровых дней (мира) начинается фаза 2. */
+	/** Через сколько игровых дней начинается фаза 2 (мимик преследует и убивает). */
 	public static final int PHASE2_DAY = 3;
 	/** 0 = авто, 1 или 2 = принудительно (команда /mimic phase). */
 	public static int forcedPhase = 0;
 
 	private static final Random RNG = new Random();
 	private static final Map<UUID, Integer> timers = new HashMap<>();
+	private static final Map<UUID, Amb> amb = new HashMap<>();
 	private static final List<Task> tasks = new ArrayList<>();
 	private static int now = 0;
 
@@ -37,6 +42,12 @@ public class MimicDirector {
 		final int at;
 		final Runnable run;
 		Task(int at, Runnable run) { this.at = at; this.run = run; }
+	}
+
+	/** Какой длинный фоновый трек сейчас играет у игрока. */
+	private static class Amb {
+		SoundEvent current;
+		int until;
 	}
 
 	public static void init() {
@@ -55,6 +66,11 @@ public class MimicDirector {
 	private static int nextDelay(int phase) {
 		// фаза 1: 40-120 сек, фаза 2: 30-90 сек
 		return phase == 1 ? 800 + RNG.nextInt(1600) : 600 + RNG.nextInt(1200);
+	}
+
+	/** Мимик исчез, потому что на него посмотрели - скоро вернётся. */
+	public static void hurry(UUID id) {
+		timers.put(id, 200 + RNG.nextInt(400));
 	}
 
 	private static void tick(MinecraftServer server) {
@@ -84,34 +100,61 @@ public class MimicDirector {
 		int ph = phase(p.getServer());
 		int r = RNG.nextInt(100);
 		if (ph == 1) {
-			if (r < 25) soundScare(p);
-			else if (r < 40) footsteps(p);
-			else if (r < 50) digging(p);
-			else if (r < 62) chat(p);
-			else if (r < 82) appear(p, false);
-			else if (r < 92) weather(p);
-			else voiceLine(p);
+			if (r < 14) ambient(p);
+			else if (r < 24) farScream(p);
+			else if (r < 34) footsteps(p);
+			else if (r < 42) digging(p);
+			else if (r < 50) rustle(p);
+			else if (r < 60) chat(p);
+			else if (r < 68) screenText(p);
+			else if (r < 80) appear(p, MimicEntity.FLICKER);
+			else if (r < 90) appear(p, MimicEntity.GHOST);
+			else weather(p);
 		} else {
-			if (r < 15) soundScare(p);
-			else if (r < 25) footsteps(p);
-			else if (r < 35) digging(p);
-			else if (r < 45) chat(p);
-			else if (r < 70) appear(p, true);
-			else if (r < 85) weather(p);
-			else voiceLine(p);
+			if (r < 10) ambient(p);
+			else if (r < 16) farScream(p);
+			else if (r < 24) footsteps(p);
+			else if (r < 30) digging(p);
+			else if (r < 36) rustle(p);
+			else if (r < 42) chat(p);
+			else if (r < 48) screenText(p);
+			else if (r < 58) appear(p, MimicEntity.FLICKER);
+			else if (r < 80) appear(p, MimicEntity.STALK);
+			else if (r < 90) weather(p);
+			else appear(p, MimicEntity.GHOST);
 		}
 	}
 
-	private static void soundScare(ServerPlayerEntity p) {
-		SoundEvent[] pool = {MimicSounds.CRY, MimicSounds.SCREAM, MimicSounds.RUSTLE, MimicSounds.CRY};
-		SoundEvent s = pool[RNG.nextInt(pool.length)];
-		Vec3d pos = offset(p, 8, 25);
-		playTo(p, s, pos, s == MimicSounds.RUSTLE ? 1.5F : 3.0F, 0.9F + RNG.nextFloat() * 0.2F);
+	private static void ambient(ServerPlayerEntity p) {
+		if (RNG.nextInt(100) < 65) playAmbient(p, MimicSounds.DRONE, MimicSounds.DRONE_TICKS);
+		else playAmbient(p, MimicSounds.WATERPHONE, MimicSounds.WATERPHONE_TICKS);
 	}
 
-	private static void voiceLine(ServerPlayerEntity p) {
-		SoundEvent[] pool = {MimicSounds.HI, MimicSounds.SEE_YOU, MimicSounds.NOT_ME, MimicSounds.DONT_KILL};
-		playTo(p, pool[RNG.nextInt(pool.length)], offset(p, 5, 18), 2.5F, 1.0F);
+	/** Мимик рядом: включаем жуткую музыку (если играет гул - заглушаем его). */
+	public static void nearMimic(ServerPlayerEntity p) {
+		playAmbient(p, MimicSounds.WATERPHONE, MimicSounds.WATERPHONE_TICKS);
+	}
+
+	/** Два длинных трека никогда не играют одновременно. */
+	private static void playAmbient(ServerPlayerEntity p, SoundEvent track, int ticks) {
+		Amb a = amb.get(p.getUuid());
+		if (a == null) { a = new Amb(); amb.put(p.getUuid(), a); }
+		if (a.current != null && now < a.until) {
+			if (a.current == track) return;
+			p.networkHandler.sendPacket(new StopSoundS2CPacket(a.current.getId(), SoundCategory.AMBIENT));
+		}
+		p.networkHandler.sendPacket(new PlaySoundS2CPacket(track, SoundCategory.AMBIENT, p.getX(), p.getY(), p.getZ(), 1.0F, 1.0F));
+		a.current = track;
+		a.until = now + ticks;
+	}
+
+	/** Далёкий крик с эхом. */
+	private static void farScream(ServerPlayerEntity p) {
+		playTo(p, MimicSounds.FAR_SCREAM, offset(p, 30, 45), 3.0F, 1.0F);
+	}
+
+	private static void rustle(ServerPlayerEntity p) {
+		playTo(p, MimicSounds.RUSTLE, offset(p, 6, 20), 1.6F, 0.9F + RNG.nextFloat() * 0.2F);
 	}
 
 	private static void footsteps(ServerPlayerEntity p) {
@@ -140,9 +183,16 @@ public class MimicDirector {
 		p.sendMessage(new LiteralText("<Mimic> " + s), false);
 	}
 
+	private static void screenText(ServerPlayerEntity p) {
+		String[] lines = {"I SEE YOU", "BEHIND YOU", "DON'T LOOK BACK", "HI", "I'M HERE", "RUN"};
+		String s = lines[RNG.nextInt(lines.length)];
+		if (RNG.nextInt(100) < 30) s = new StringBuilder(s).reverse().toString();
+		sendText(p, s, 50 + RNG.nextInt(30));
+	}
+
 	private static void weather(ServerPlayerEntity p) {
 		ServerWorld w = p.getServerWorld();
-		if (w.getRegistryKey() != net.minecraft.world.World.OVERWORLD) { soundScare(p); return; }
+		if (w.getRegistryKey() != net.minecraft.world.World.OVERWORLD) { rustle(p); return; }
 		if (!w.isRaining() || !w.isThundering()) {
 			w.setWeather(0, 3000 + RNG.nextInt(4000), true, true);
 		}
@@ -165,40 +215,62 @@ public class MimicDirector {
 		w.spawnEntity(bolt);
 	}
 
-	/** hunter=false: фаза 1, призрачное появление. hunter=true: фаза 2, охотится. */
-	public static void appear(ServerPlayerEntity p, boolean hunter) {
+	/** Появление мимика. mode: MimicEntity.GHOST / FLICKER / STALK / HUNT. */
+	public static void appear(ServerPlayerEntity p, int mode) {
 		ServerWorld w = p.getServerWorld();
-		if (hunter && !w.getEntitiesByClass(MimicEntity.class, p.getBoundingBox().expand(100), e -> true).isEmpty()) return;
+		if (!w.getEntitiesByClass(MimicEntity.class, p.getBoundingBox().expand(100), e -> true).isEmpty()) return;
 		for (int i = 0; i < 15; i++) {
-			Vec3d o = offset(p, 10, 30);
+			Vec3d o;
+			if (mode == MimicEntity.FLICKER && RNG.nextBoolean()) o = offsetFront(p, 5, 22); // прямо перед игроком
+			else if (mode == MimicEntity.STALK || mode == MimicEntity.HUNT) o = offset(p, 18, 32);
+			else o = offset(p, 10, 30);
 			BlockPos g = findGround(w, (int) Math.floor(o.x), (int) Math.floor(o.z), p.getBlockPos().getY());
 			if (g == null) continue;
 			MimicEntity m = MimicMod.MIMIC.create(w);
 			if (m == null) return;
 			m.refreshPositionAndAngles(g.getX() + 0.5, g.getY(), g.getZ() + 0.5, 0.0F, 0.0F);
-			if (hunter) {
-				m.setHunter(2400);
-				m.setTarget(p);
-			} else {
-				m.setHaunt(true);
-			}
+			m.setMode(mode == MimicEntity.HUNT ? MimicEntity.STALK : mode);
 			w.spawnEntity(m);
-			w.playSound(null, m.getX(), m.getY(), m.getZ(), hunter ? MimicSounds.SEE_YOU : MimicSounds.HI,
-					SoundCategory.HOSTILE, 3.0F, 1.0F);
+			if (mode == MimicEntity.FLICKER) {
+				w.playSound(null, m.getX(), m.getY(), m.getZ(), MimicSounds.FLICKER, SoundCategory.HOSTILE, 3.0F, 1.0F);
+			}
+			if (mode == MimicEntity.HUNT) m.beginHunt(p);
 			return;
 		}
 	}
 
+	// ------------------------------------------------------------ сеть (надписи и скример)
+
+	public static void sendText(ServerPlayerEntity p, String text, int ticks) {
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeString(text);
+		buf.writeInt(ticks);
+		ServerPlayNetworking.send(p, MimicNet.TEXT, buf);
+	}
+
+	public static void jumpscare(ServerPlayerEntity p) {
+		ServerPlayNetworking.send(p, MimicNet.SCARE, PacketByteBufs.create());
+	}
+
 	// ------------------------------------------------------------ утилиты
 
-	/** Случайная точка на расстоянии min..max от игрока; в 40% случаев - за спиной. */
+	private static Vec3d offsetAngle(ServerPlayerEntity p, double ang, double min, double max) {
+		double d = min + RNG.nextDouble() * (max - min);
+		return new Vec3d(p.getX() - Math.sin(ang) * d, p.getY(), p.getZ() + Math.cos(ang) * d);
+	}
+
+	/** Случайная точка на расстоянии min..max; в 40% случаев - за спиной. */
 	private static Vec3d offset(ServerPlayerEntity p, double min, double max) {
 		double yawRad = Math.toRadians(p.yaw);
 		double ang = RNG.nextInt(100) < 40
 				? yawRad + Math.PI + (RNG.nextDouble() - 0.5) * 1.6
 				: RNG.nextDouble() * Math.PI * 2;
-		double d = min + RNG.nextDouble() * (max - min);
-		return new Vec3d(p.getX() - Math.sin(ang) * d, p.getY(), p.getZ() + Math.cos(ang) * d);
+		return offsetAngle(p, ang, min, max);
+	}
+
+	private static Vec3d offsetFront(ServerPlayerEntity p, double min, double max) {
+		double ang = Math.toRadians(p.yaw) + (RNG.nextDouble() - 0.5) * 0.9;
+		return offsetAngle(p, ang, min, max);
 	}
 
 	private static BlockPos findGround(ServerWorld w, int x, int z, int aroundY) {
@@ -209,7 +281,8 @@ public class MimicDirector {
 			if (w.getBlockState(below).isSolidBlock(w, below)
 					&& w.getBlockState(pos).isAir()
 					&& w.getBlockState(pos.up()).isAir()
-					&& w.getBlockState(pos.up(2)).isAir()) {
+					&& w.getBlockState(pos.up(2)).isAir()
+					&& w.getBlockState(pos.up(3)).isAir()) {
 				return pos;
 			}
 		}

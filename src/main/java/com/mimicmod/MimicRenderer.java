@@ -8,7 +8,8 @@ public class MimicRenderer extends MobEntityRenderer<MimicEntity, MimicModel> {
 	private static final Identifier TEXTURE = new Identifier(MimicMod.MOD_ID, "textures/entity/mimic.png");
 
 	public MimicRenderer(EntityRenderDispatcher dispatcher) {
-		super(dispatcher, new MimicModel(), 0.5F);
+		super(dispatcher, new MimicModel(), 0.6F);
+		this.addFeature(new MimicEyesFeature(this));
 	}
 
 	@Override
